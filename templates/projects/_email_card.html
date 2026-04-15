@@ -1,0 +1,44 @@
+{% load humanize %}
+<div class="email-card email-card--{{ email.sender }}" id="email-{{ email.pk }}">
+  <div class="card-header d-flex align-items-center gap-2">
+    <div class="persona-avatar persona-avatar--{{ email.sender }}">
+      {% if email.sender == 'po' %}PO
+      {% elif email.sender == 'pm' %}PM
+      {% elif email.sender == 'el' %}EL
+      {% elif email.sender == 'dev1' %}D1
+      {% elif email.sender == 'dev2' %}D2
+      {% elif email.sender == 'user' %}<i class="bi bi-person-fill" style="font-size:.85rem;"></i>
+      {% else %}<i class="bi bi-gear-fill" style="font-size:.85rem;"></i>
+      {% endif %}
+    </div>
+    <div class="flex-grow-1 min-width-0">
+      <div class="d-flex align-items-baseline gap-1 flex-wrap">
+        <strong class="me-1">{{ email.get_sender_display }}</strong>
+        {% if email.recipients %}
+          <span class="text-muted small">→ {{ email.recipients_display }}</span>
+        {% endif %}
+        {% if email.cc %}
+          <span class="text-muted small">cc: {{ email.cc_display }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-shrink-0">
+      {% if email.tokens_used %}
+        <span class="badge bg-secondary" title="{{ email.tokens_used|intcomma }} tokens / ${{ email.cost_usd }}">
+          {{ email.tokens_used|intcomma }} tok
+        </span>
+      {% endif %}
+      <span class="text-muted small">{{ email.created_at|time:"H:i" }}</span>
+    </div>
+  </div>
+  <div class="card-body py-2 px-3">
+    <div class="email-subject">{{ email.subject }}</div>
+    <div class="email-body">
+      {% if email.body_html %}
+        {{ email.body_html|safe }}
+      {% else %}
+        <p>{{ email.body|linebreaksbr }}</p>
+      {% endif %}
+    </div>
+  </div>
+</div>

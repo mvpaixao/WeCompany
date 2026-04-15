@@ -1,0 +1,8 @@
+{% comment %}
+Returned by poll_new_emails. HTMX appends new emails and swaps the status bar.
+{% endcomment %}
+{% if new_emails %}
+{% for email in new_emails %}
+{% include "projects/_email_card.html" %}
+{% endfor %}
+{% endif %}

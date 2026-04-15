@@ -1,0 +1,11 @@
+# Generated from pyproject.toml — for PythonAnywhere pip install
+django>=5.0
+psycopg2-binary
+django-q2
+anthropic>=0.25.0
+PyGithub
+python-dotenv
+markdown
+bleach
+Pillow
+django-ratelimit

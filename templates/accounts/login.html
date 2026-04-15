@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+
+{% block auth_content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center bg-light">
+  <div class="card shadow border-0" style="width: 380px;">
+    <div class="card-body p-4">
+      <div class="text-center mb-4">
+        <i class="bi bi-buildings text-primary" style="font-size:2.5rem;"></i>
+        <h4 class="mt-2 fw-bold">AI Company</h4>
+        <p class="text-muted small">Simulator</p>
+      </div>
+
+      {% if form.errors %}
+        <div class="alert alert-danger py-2 small">Usuário ou senha inválidos.</div>
+      {% endif %}
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Usuário</label>
+          <input type="text" name="username" class="form-control" autofocus required>
+        </div>
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Senha</label>
+          <input type="password" name="password" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Entrar</button>
+      </form>
+      <div class="text-center mt-3 small">
+        Não tem conta? <a href="{% url 'register' %}">Criar conta</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

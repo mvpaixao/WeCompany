@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Nova Ideia{% endblock %}
+{% block topbar_title %}<i class="bi bi-lightbulb me-2 text-warning"></i> Nova Ideia{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-white border-bottom">
+        <h5 class="mb-0">Nova Ideia de Projeto</h5>
+        <p class="text-muted small mb-0 mt-1">
+          Descreva sua ideia em qualquer nível de detalhe. A equipe vai refinar.
+        </p>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{% url 'new_project' %}">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Título <span class="text-muted fw-normal">(opcional)</span></label>
+            <input type="text" class="form-control" name="title"
+                   placeholder="Ex: Sistema de agendamento para clínica">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Descreva sua ideia <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="original_idea" rows="7" required
+                      data-autoresize
+                      placeholder="Pode ser uma frase ou vários parágrafos. Ex: 'Quero um app para controlar estoque de cartões EMV na linha de produção, com alertas de mínimo e relatório diário em PDF'"></textarea>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">GitHub Repo <span class="text-muted fw-normal">(opcional)</span></label>
+            <input type="text" class="form-control" name="github_repo"
+                   placeholder="usuario/repositorio">
+            <div class="form-text">Se informado, as Issues serão criadas neste repositório.</div>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-send"></i> Enviar para a Equipe
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

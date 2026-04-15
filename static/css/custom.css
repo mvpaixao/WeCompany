@@ -1,0 +1,282 @@
+/* AI Company Simulator — Custom Styles */
+
+:root {
+  --color-po:     #0d6efd;
+  --color-pm:     #198754;
+  --color-el:     #6f42c1;
+  --color-dev1:   #fd7e14;
+  --color-dev2:   #dc3545;
+  --color-user:   #0dcaf0;
+  --color-system: #6c757d;
+  --sidebar-width: 260px;
+}
+
+/* ─── Layout ─────────────────────────────── */
+body {
+  background: #f5f5f5;
+  font-size: 0.9rem;
+}
+
+.app-wrapper {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ─── Sidebar ────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  background: #fff;
+  border-right: 1px solid #dee2e6;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebar-brand {
+  padding: 1rem;
+  border-bottom: 1px solid #dee2e6;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #0d6efd;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+.sidebar-brand:hover { color: #0b5ed7; }
+
+.sidebar-section {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.sidebar-label {
+  padding: 0.4rem 1rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #999;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.5rem 1rem;
+  color: #333;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: background .15s;
+  font-size: 0.85rem;
+}
+.sidebar-link:hover { background: #f8f9fa; color: #0d6efd; }
+.sidebar-link.active {
+  background: #e7f1ff;
+  color: #0d6efd;
+  border-left-color: #0d6efd;
+  font-weight: 600;
+}
+
+.project-badge {
+  margin-left: auto;
+  background: #dc3545;
+  color: white;
+  font-size: 0.65rem;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.status-dot.active  { background: #198754; }
+.status-dot.dormant { background: #0dcaf0; }
+.status-dot.paused  { background: #dc3545; }
+.status-dot.completed { background: #6c757d; }
+
+/* ─── Main panel ─────────────────────────── */
+.main-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  background: #fff;
+  border-bottom: 1px solid #dee2e6;
+  padding: 0.6rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.topbar-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #333;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.content-area {
+  flex: 1;
+  padding: 1.25rem;
+  overflow-y: auto;
+}
+
+/* ─── Persona Avatars ─────────────────────── */
+.persona-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.72rem; color: white;
+  flex-shrink: 0;
+}
+.persona-avatar.sm { width: 24px; height: 24px; font-size: 0.6rem; }
+
+.persona-avatar--po     { background-color: var(--color-po); }
+.persona-avatar--pm     { background-color: var(--color-pm); }
+.persona-avatar--el     { background-color: var(--color-el); }
+.persona-avatar--dev1   { background-color: var(--color-dev1); }
+.persona-avatar--dev2   { background-color: var(--color-dev2); }
+.persona-avatar--user   { background-color: var(--color-user); color: #000; }
+.persona-avatar--system { background-color: var(--color-system); }
+
+/* ─── Email cards ────────────────────────── */
+.email-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+
+.email-card--user {
+  border-left: 4px solid var(--color-user);
+  background: #f0fdff;
+}
+.email-card--system {
+  border-left: 4px solid var(--color-system);
+  background: #f8f9fa;
+}
+.email-card--po   { border-top: 3px solid var(--color-po); }
+.email-card--pm   { border-top: 3px solid var(--color-pm); }
+.email-card--el   { border-top: 3px solid var(--color-el); }
+.email-card--dev1 { border-top: 3px solid var(--color-dev1); }
+.email-card--dev2 { border-top: 3px solid var(--color-dev2); }
+
+.email-card .card-header {
+  background: transparent;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 0.6rem 0.85rem;
+}
+
+.email-subject {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.email-body {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #444;
+}
+
+.email-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.85rem;
+}
+.email-body table th,
+.email-body table td {
+  border: 1px solid #dee2e6;
+  padding: 0.4rem 0.6rem;
+}
+.email-body table th { background: #f8f9fa; font-weight: 600; }
+.email-body code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 0.82em; }
+.email-body pre  { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+.email-body pre code { background: none; color: inherit; padding: 0; }
+.email-body blockquote {
+  border-left: 3px solid #dee2e6;
+  padding-left: 1rem;
+  color: #666;
+  margin: 0.5rem 0;
+}
+
+/* ─── Persona Status Bar ─────────────────── */
+.persona-status-bar {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.persona-status-badge {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.persona-status-badge--pending  { background: #fff3cd; border-color: #ffc107; color: #856404; }
+.persona-status-badge--approved { background: #d1e7dd; border-color: #198754; color: #0f5132; }
+.persona-status-badge--blocked  { background: #f8d7da; border-color: #dc3545; color: #842029; }
+
+/* ─── Feedback bar ───────────────────────── */
+.feedback-bar {
+  background: #fff;
+  border-top: 1px solid #dee2e6;
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+.feedback-bar textarea {
+  flex: 1;
+  resize: none;
+  border-radius: 6px;
+}
+
+/* ─── Project status badges ──────────────── */
+.badge-active    { background: #d1e7dd; color: #0f5132; }
+.badge-dormant   { background: #cff4fc; color: #055160; }
+.badge-paused    { background: #f8d7da; color: #842029; }
+.badge-completed { background: #e2e3e5; color: #383d41; }
+
+/* ─── Spinner overlay ────────────────────── */
+.thinking-indicator {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #999;
+  padding: 0.5rem 0;
+}
+.thinking-indicator.visible { display: flex; }
+
+/* ─── Responsive ─────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .content-area { padding: 0.75rem; }
+}

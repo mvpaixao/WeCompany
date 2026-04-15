@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}{{ project.title }}{% endblock %}
+
+{% block topbar_title %}
+  <span class="status-dot {{ project.status }} me-2"></span>
+  {{ project.title }}
+  <span class="badge ms-2 rounded-pill
+    {% if project.status == 'active' %}bg-success
+    {% elif project.status == 'dormant' %}bg-info
+    {% elif project.status == 'paused' %}bg-danger
+    {% else %}bg-secondary{% endif %}
+    " style="font-size:.65rem; vertical-align:middle;">
+    {{ project.get_status_display }}
+  </span>
+{% endblock %}
+
+{% block topbar_actions %}
+  {% if issues %}
+    <a href="#issues-panel" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-github"></i> {{ issues.count }} Issue{{ issues.count|pluralize }}
+    </a>
+  {% endif %}
+  {% if project.status == 'dormant' or project.status == 'active' %}
+    <form method="post" action="{% url 'create_issues' project.pk %}" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline-dark btn-sm"
+              title="Criar Issues no GitHub">
+        <i class="bi bi-github"></i> Criar Issues
+      </button>
+    </form>
+    <form method="post" action="{% url 'force_approve' project.pk %}" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline-success btn-sm"
+              title="Forçar aprovação de todas as personas"
+              onclick="return confirm('Forçar aprovação e gerar issues?')">
+        <i class="bi bi-check-all"></i> Aprovar e continuar
+      </button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- Persona status bar (HTMX-refreshed) -->
+<div id="status-bar-wrapper">
+  {% include "projects/_persona_status_bar.html" %}
+</div>
+
+<!-- Thinking indicator -->
+<div class="thinking-indicator" id="thinking">
+  <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+  A equipe está respondendo…
+</div>
+
+<!-- Email thread — scrollable, HTMX polls for new messages -->
+<div id="email-thread"
+     style="max-height:calc(100vh - 260px); overflow-y:auto; padding-bottom: 1rem;"
+     hx-get="{% url 'poll_emails' project.pk %}?after={{ emails.last.pk|default:0 }}"
+     hx-trigger="every 4s"
+     hx-target="#email-thread"
+     hx-swap="beforeend"
+     hx-include="[name='after']">
+
+  {% for email in emails %}
+    {% include "projects/_email_card.html" %}
+  {% endfor %}
+
+</div>
+
+<!-- Issues panel -->
+<!-- Feedback form -->
+<div class="feedback-bar mt-3">
+  <form method="post" action="{% url 'submit_feedback' project.pk %}"
+        hx-post="{% url 'submit_feedback' project.pk %}"
+        hx-target="#email-thread"
+        hx-swap="beforeend"
+        class="d-flex gap-2 w-100 align-items-end">
+    {% csrf_token %}
+    <textarea name="feedback" class="form-control" rows="2"
+              placeholder="Envie feedback ou refinamentos para a equipe…"
+              data-autoresize></textarea>
+    <button type="submit" class="btn btn-primary flex-shrink-0">
+      <i class="bi bi-send"></i> Enviar
+    </button>
+  </form>
+</div>
+
+{% if issues %}
+<div id="issues-panel" class="mt-4">
+  <h6 class="fw-semibold mb-2"><i class="bi bi-github"></i> GitHub Issues criadas</h6>
+  <div class="list-group list-group-flush border rounded">
+    {% for issue in issues %}
+      <div class="list-group-item d-flex align-items-center gap-2 py-2">
+        <span class="badge bg-secondary">#{{ issue.github_issue_number|default:"—" }}</span>
+        {% if issue.github_url %}
+          <a href="{{ issue.github_url }}" target="_blank" class="text-decoration-none">{{ issue.title }}</a>
+        {% else %}
+          {{ issue.title }}
+        {% endif %}
+        {% for label in issue.labels %}
+          <span class="badge bg-light text-dark border" style="font-size:.65rem;">{{ label }}</span>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Update the poll URL "after" param whenever new emails arrive
+document.addEventListener('htmx:afterSwap', function(evt) {
+  if (evt.detail.target.id === 'email-thread') {
+    var cards = evt.detail.target.querySelectorAll('[id^="email-"]');
+    if (cards.length > 0) {
+      var lastId = cards[cards.length - 1].id.replace('email-', '');
+      var thread = document.getElementById('email-thread');
+      var url = thread.getAttribute('hx-get');
+      thread.setAttribute('hx-get', url.replace(/after=\d+/, 'after=' + lastId));
+      // Also refresh status bar
+      htmx.ajax('GET', '{% url "poll_emails" project.pk %}?after=0&status_only=1', {
+        target: '#status-bar-wrapper',
+        swap: 'innerHTML'
+      });
+    }
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,20 @@
+<div class="persona-status-bar" id="persona-status-bar">
+  {% for state in persona_states %}
+    <div class="persona-status-badge persona-status-badge--{{ state.status }}"
+         title="{{ state.last_concern }}">
+      <div class="persona-avatar sm persona-avatar--{{ state.persona }}">
+        {% if state.persona == 'po' %}PO
+        {% elif state.persona == 'pm' %}PM
+        {% elif state.persona == 'el' %}EL
+        {% elif state.persona == 'dev1' %}D1
+        {% elif state.persona == 'dev2' %}D2
+        {% endif %}
+      </div>
+      {{ state.get_persona_display }}
+      {% if state.status == 'approved' %}<i class="bi bi-check-circle-fill text-success ms-1"></i>
+      {% elif state.status == 'blocked' %}<i class="bi bi-x-circle-fill text-danger ms-1"></i>
+      {% else %}<span class="ms-1">…</span>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
