@@ -5,7 +5,6 @@ document.addEventListener('htmx:afterSwap', function (evt) {
   if (typeof mermaid !== 'undefined') {
     mermaid.init(undefined, evt.detail.target.querySelectorAll('.mermaid'));
   }
-  scrollThreadToBottom();
 });
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -13,7 +12,6 @@ document.addEventListener('DOMContentLoaded', function () {
   if (typeof mermaid !== 'undefined') {
     mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
   }
-  scrollThreadToBottom();
 
   // Auto-resize textarea
   document.querySelectorAll('textarea[data-autoresize]').forEach(function (ta) {
@@ -23,13 +21,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 });
-
-function scrollThreadToBottom() {
-  var thread = document.getElementById('email-thread');
-  if (thread) {
-    thread.scrollTop = thread.scrollHeight;
-  }
-}
 
 // Show thinking indicator while HTMX request is in-flight
 document.addEventListener('htmx:beforeRequest', function (evt) {

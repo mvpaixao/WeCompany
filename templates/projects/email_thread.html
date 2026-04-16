@@ -24,8 +24,7 @@
   {% if project.status == 'dormant' or project.status == 'active' %}
     <form method="post" action="{% url 'create_issues' project.pk %}" class="d-inline">
       {% csrf_token %}
-      <button type="submit" class="btn btn-outline-dark btn-sm"
-              title="Criar Issues no GitHub">
+      <button type="submit" class="btn btn-outline-dark btn-sm" title="Criar Issues no GitHub">
         <i class="bi bi-github"></i> Criar Issues
       </button>
     </form>
@@ -41,25 +40,25 @@
 {% endblock %}
 
 {% block content %}
-<!-- Persona status bar (HTMX-refreshed) -->
+<!-- Persona status bar -->
 <div id="status-bar-wrapper">
   {% include "projects/_persona_status_bar.html" %}
 </div>
 
-<!-- Thinking indicator -->
+<!-- Thinking indicator — só visível durante polls que retornam conteúdo -->
 <div class="thinking-indicator" id="thinking">
   <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
   A equipe está respondendo…
 </div>
 
-<!-- Email thread — scrollable, HTMX polls for new messages -->
+<!-- Email thread -->
 <div id="email-thread"
-     style="max-height:calc(100vh - 260px); overflow-y:auto; padding-bottom: 1rem;"
+     style="max-height:calc(100vh - 280px); overflow-y:auto; padding-bottom:1rem;"
      hx-get="{% url 'poll_emails' project.pk %}?after={{ emails.last.pk|default:0 }}"
-     hx-trigger="every 4s"
+     hx-trigger="{% if project.status == 'active' %}every 4s{% else %}none{% endif %}"
      hx-target="#email-thread"
-     hx-swap="beforeend"
-     hx-include="[name='after']">
+     hx-swap="beforeend scroll:bottom"
+     hx-push-url="false">
 
   {% for email in emails %}
     {% include "projects/_email_card.html" %}
@@ -67,13 +66,13 @@
 
 </div>
 
-<!-- Issues panel -->
 <!-- Feedback form -->
 <div class="feedback-bar mt-3">
   <form method="post" action="{% url 'submit_feedback' project.pk %}"
         hx-post="{% url 'submit_feedback' project.pk %}"
         hx-target="#email-thread"
         hx-swap="beforeend"
+        hx-on::after-request="this.reset()"
         class="d-flex gap-2 w-100 align-items-end">
     {% csrf_token %}
     <textarea name="feedback" class="form-control" rows="2"
@@ -105,27 +104,63 @@
   </div>
 </div>
 {% endif %}
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Update the poll URL "after" param whenever new emails arrive
-document.addEventListener('htmx:afterSwap', function(evt) {
-  if (evt.detail.target.id === 'email-thread') {
-    var cards = evt.detail.target.querySelectorAll('[id^="email-"]');
-    if (cards.length > 0) {
-      var lastId = cards[cards.length - 1].id.replace('email-', '');
-      var thread = document.getElementById('email-thread');
-      var url = thread.getAttribute('hx-get');
-      thread.setAttribute('hx-get', url.replace(/after=\d+/, 'after=' + lastId));
-      // Also refresh status bar
-      htmx.ajax('GET', '{% url "poll_emails" project.pk %}?after=0&status_only=1', {
-        target: '#status-bar-wrapper',
-        swap: 'innerHTML'
-      });
-    }
+(function () {
+  var thread = document.getElementById('email-thread');
+  var lastEmailId = {{ emails.last.pk|default:0 }};
+
+  // Scroll inteligente: só desce automaticamente se o usuário já estava no fim
+  function isAtBottom() {
+    return thread.scrollHeight - thread.scrollTop - thread.clientHeight < 80;
   }
-});
+
+  function scrollToBottom() {
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  // Posição inicial: vai pro fim
+  scrollToBottom();
+
+  document.addEventListener('htmx:beforeRequest', function (evt) {
+    if (evt.detail.target === thread) {
+      // Salva se estava no fundo antes do swap
+      thread.dataset.wasAtBottom = isAtBottom() ? '1' : '0';
+    }
+  });
+
+  document.addEventListener('htmx:afterSwap', function (evt) {
+    if (evt.detail.target !== thread) return;
+
+    // Atualiza o after= com o id do último email
+    var cards = thread.querySelectorAll('[id^="email-"]');
+    if (cards.length > 0) {
+      var newLastId = parseInt(cards[cards.length - 1].id.replace('email-', ''), 10);
+      if (newLastId > lastEmailId) {
+        lastEmailId = newLastId;
+        var url = thread.getAttribute('hx-get');
+        thread.setAttribute('hx-get', url.replace(/after=\d+/, 'after=' + lastEmailId));
+
+        // Reativa o polling se projeto voltou a ser active
+        if (thread.getAttribute('hx-trigger') === 'none') {
+          thread.setAttribute('hx-trigger', 'every 4s');
+          htmx.process(thread);
+        }
+
+        // Atualiza status bar
+        htmx.ajax('GET', '{% url "poll_emails" project.pk %}?after=0&status_only=1', {
+          target: '#status-bar-wrapper', swap: 'innerHTML'
+        });
+
+        // Só rola se o usuário estava no fundo
+        if (thread.dataset.wasAtBottom === '1') {
+          scrollToBottom();
+        }
+      }
+    }
+  });
+})();
 </script>
 {% endblock %}

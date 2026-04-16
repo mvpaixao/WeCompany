@@ -186,8 +186,17 @@ def poll_new_emails(request, pk):
             'persona_states': states,
         })
 
-    new_emails = project.emails.filter(id__gt=after_id)
-    new_emails.filter(is_read=False).update(is_read=True)
+    new_emails = list(project.emails.filter(id__gt=after_id))
+
+    # Nada novo → 204 No Content: HTMX não toca no DOM, scroll preservado
+    if not new_emails:
+        return HttpResponse(status=204)
+
+    for e in new_emails:
+        if not e.is_read:
+            e.is_read = True
+            e.save(update_fields=['is_read'])
+
     states = project.states.all()
 
     return render(request, 'projects/_poll_response.html', {
