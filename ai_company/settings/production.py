@@ -1,24 +1,39 @@
 """
 PythonAnywhere production settings.
-Python 3.12, PostgreSQL 12+ (port 14110).
+Python 3.10, MySQL (PythonAnywhere free plan).
 """
+
+import os
+from dotenv import load_dotenv
+from pathlib import Path
+
+# Load .env before reading settings
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+load_dotenv(BASE_DIR / '.env')
+
 from .base import *
 
-ALLOWED_HOSTS = [os.environ.get('PYTHONANYWHERE_DOMAIN', 'yourusername.pythonanywhere.com')]
+ALLOWED_HOSTS = [
+    'mpaixao.pythonanywhere.com',
+    os.environ.get('PYTHONANYWHERE_DOMAIN', ''),
+]
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'yourusername$ai_company'),
-        'USER': os.environ.get('DB_USER', 'yourusername'),
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.environ.get('DB_NAME', 'mpaixao$wecompany'),
+        'USER': os.environ.get('DB_USER', 'mpaixao'),
         'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'yourusername-postgres.pythonanywhere-services.com'),
-        'PORT': os.environ.get('DB_PORT', '14110'),
+        'HOST': os.environ.get('DB_HOST', 'mpaixao.mysql.pythonanywhere-services.com'),
+        'PORT': os.environ.get('DB_PORT', '3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
     }
 }
 
-STATIC_ROOT = os.environ.get('STATIC_ROOT', '/home/yourusername/ai_company/staticfiles/')
-MEDIA_ROOT = os.environ.get('MEDIA_ROOT', '/home/yourusername/ai_company/media/')
+STATIC_ROOT = os.environ.get('STATIC_ROOT', str(BASE_DIR / 'staticfiles'))
+MEDIA_ROOT = os.environ.get('MEDIA_ROOT', str(BASE_DIR / 'media'))
 
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
