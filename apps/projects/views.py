@@ -114,28 +114,52 @@ def submit_feedback(request, pk):
 
 @login_required
 def force_approve(request, pk):
+    """
+    Força aprovação das personas de análise (PO, FC, EL) e aciona o fluxo
+    para que DEV1 e DEV2 gerem os emails de spec normalmente.
+    Se DEV1/DEV2 já rodaram (emails existentes), extrai as specs direto.
+    """
     if request.method != 'POST':
         return redirect('project_thread', pk=pk)
 
     project = get_object_or_404(Project, pk=pk, owner=request.user)
-    project.states.all().update(status='approved')
 
-    EmailMessage.objects.create(
-        project=project,
-        sender='system',
-        recipients=[],
-        subject='Aprovação manual pelo usuário',
-        body='O usuário forçou a aprovação. Gerando especificações.',
-        body_html='<p><em>O usuário forçou a aprovação. Gerando especificações.</em></p>',
-        is_read=True,
-    )
+    # Verifica se DEV1/DEV2 já geraram emails com specs
+    devs_already_ran = project.emails.filter(sender__in=['dev1', 'dev2']).exists()
 
-    from .services.flow_manager import _handle_consensus
-    from apps.controller.models import ControllerConfig
-    config = ControllerConfig.get_for_user(request.user)
-    _handle_consensus(project, config)
+    if devs_already_ran:
+        # Aprova todos e extrai specs dos emails existentes
+        project.states.all().update(status='approved')
+        EmailMessage.objects.create(
+            project=project,
+            sender='system',
+            recipients=[],
+            subject='Aprovação manual pelo usuário',
+            body='O usuário finalizou a discussão. Extraindo especificações dos emails existentes.',
+            body_html='<p><em>O usuário finalizou a discussão. Extraindo especificações dos emails existentes.</em></p>',
+            is_read=True,
+        )
+        from .services.flow_manager import _handle_consensus
+        config = ControllerConfig.get_for_user(request.user)
+        _handle_consensus(project, config)
+        messages.success(request, 'Aprovação forçada. Specs extraídas.')
+    else:
+        # Aprova apenas PO/FC/EL e deixa o fluxo chamar DEV1/DEV2 para gerarem as specs
+        project.states.filter(persona__in=['po', 'fc', 'el']).update(status='approved')
+        EmailMessage.objects.create(
+            project=project,
+            sender='system',
+            recipients=[],
+            subject='Aprovação manual pelo usuário',
+            body='O usuário finalizou a discussão. DEV1 e DEV2 estão gerando as especificações.',
+            body_html='<p><em>O usuário finalizou a discussão. DEV1 e DEV2 estão gerando as especificações.</em></p>',
+            is_read=True,
+        )
+        project.status = 'active'
+        project.save(update_fields=['status', 'updated_at'])
+        enqueue_flow_step(project.id)
+        messages.success(request, 'Discussão finalizada. Aguarde DEV1 e DEV2 gerarem as specs.')
 
-    messages.success(request, 'Aprovação forçada. Specs geradas.')
     return redirect('project_thread', pk=pk)
 
 
