@@ -33,6 +33,26 @@
 {% endblock %}
 
 {% block content %}
+<!-- Project action bar — always visible -->
+<div class="project-action-bar d-flex gap-2 align-items-center mb-2 flex-wrap">
+  {% if project.status == 'active' %}
+    <form method="post" action="{% url 'suspend_project' project.pk %}" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-warning btn-sm"
+              onclick="return confirm('Suspender o processamento?')">
+        <i class="bi bi-pause-circle"></i> Suspender
+      </button>
+    </form>
+  {% endif %}
+  <form method="post" action="{% url 'delete_project' project.pk %}" class="d-inline ms-auto">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline-danger btn-sm"
+            onclick="return confirm('Excluir este projeto permanentemente?')">
+      <i class="bi bi-trash"></i> Excluir projeto
+    </button>
+  </form>
+</div>
+
 <!-- Persona status bar -->
 <div id="status-bar-wrapper">
   {% include "projects/_persona_status_bar.html" %}
@@ -175,11 +195,41 @@
 
 {% block extra_js %}
 <script>
+// ── Seguir button: only show on last AI email ─────────────────────────────
+function updateSeguirVisibility() {
+  var all = document.querySelectorAll('#email-thread .btn-seguir-wrap');
+  all.forEach(function(el) { el.style.display = 'none'; });
+
+  var aiCards = Array.from(document.querySelectorAll('#email-thread .email-card')).filter(function(c) {
+    return !c.classList.contains('email-card--user') && !c.classList.contains('email-card--system');
+  });
+  if (aiCards.length > 0) {
+    var wrap = aiCards[aiCards.length - 1].querySelector('.btn-seguir-wrap');
+    if (wrap) wrap.style.display = '';
+  }
+}
+
+// ── Inline reply toggle ───────────────────────────────────────────────────
+function toggleReply(replyId, btn) {
+  var box = document.getElementById(replyId);
+  if (!box) return;
+  var hidden = box.classList.contains('d-none');
+  box.classList.toggle('d-none', !hidden);
+  if (!hidden) return;
+  var ta = box.querySelector('textarea');
+  if (ta) ta.focus();
+}
+
+function closeReply(replyId) {
+  var box = document.getElementById(replyId);
+  if (box) box.classList.add('d-none');
+}
+
+// ── Main thread polling ───────────────────────────────────────────────────
 (function () {
   var thread = document.getElementById('email-thread');
   var lastEmailId = {{ emails.last.pk|default:0 }};
 
-  // Scroll da PÁGINA, não do div interno
   function pageIsAtBottom() {
     return (window.scrollY + window.innerHeight) >= (document.body.scrollHeight - 120);
   }
@@ -187,13 +237,11 @@
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
   }
 
-  // Ao carregar: lembra se usuário estava no fundo antes de qualquer swap
-  var wasAtBottom = true; // na primeira carga, vai pro fundo
+  var wasAtBottom = true;
   window.addEventListener('scroll', function () {
     wasAtBottom = pageIsAtBottom();
   }, { passive: true });
 
-  // Mostra/oculta indicator de atividade
   document.addEventListener('htmx:afterSwap', function (evt) {
     var actEl = document.getElementById('activity-text');
     var indicator = document.getElementById('thinking');
@@ -202,7 +250,6 @@
     }
   });
 
-  // Quando emails novos chegam
   document.addEventListener('htmx:afterSwap', function (evt) {
     if (evt.detail.target !== thread) return;
 
@@ -214,24 +261,25 @@
 
     lastEmailId = newLastId;
 
-    // Atualiza URL do poll com o novo último id
     thread.setAttribute('hx-get',
       thread.getAttribute('hx-get').replace(/after=\d+/, 'after=' + lastEmailId));
 
-    // Reativa polling se estava parado
     if (thread.getAttribute('hx-trigger') === 'none') {
       thread.setAttribute('hx-trigger', 'every 4s');
       htmx.process(thread);
     }
 
-    // Atualiza status bar
     htmx.ajax('GET', '{% url "poll_emails" project.pk %}?after=0&status_only=1', {
       target: '#status-bar-wrapper', swap: 'innerHTML'
     });
 
-    // Só rola se o usuário já estava no fundo
+    updateSeguirVisibility();
+
     if (wasAtBottom) pageScrollToBottom();
   });
+
+  // Initial render
+  updateSeguirVisibility();
 })();
 </script>
 {% endblock %}

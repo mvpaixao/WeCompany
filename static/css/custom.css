@@ -305,6 +305,26 @@ body {
 .spec-version-badge.full  { background: #d1e7dd; color: #0f5132; }
 .spec-version-badge.delta { background: #fff3cd; color: #856404; }
 
+/* ─── Project action bar ─────────────────── */
+.project-action-bar {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 0.75rem !important;
+}
+
+/* ─── Per-email actions ──────────────────── */
+.email-actions {
+  background: #fafafa;
+  border-top: 1px solid #f0f0f0 !important;
+  border-radius: 0 0 7px 7px;
+}
+
+.inline-reply {
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+  border-radius: 0 0 7px 7px;
+}
+
 /* ─── Responsive ─────────────────────────── */
 @media (max-width: 768px) {
   .sidebar { display: none; }

@@ -140,6 +140,39 @@ def force_approve(request, pk):
 
 
 @login_required
+def suspend_project(request, pk):
+    if request.method != 'POST':
+        return redirect('project_thread', pk=pk)
+
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    project.status = 'paused'
+    project.current_activity = ''
+    project.save(update_fields=['status', 'current_activity', 'updated_at'])
+
+    EmailMessage.objects.create(
+        project=project,
+        sender='system',
+        recipients=[],
+        subject='Projeto suspenso pelo usuário',
+        body='O processamento foi suspenso. Envie feedback para retomar.',
+        body_html='<p><em>O processamento foi suspenso. Envie feedback para retomar.</em></p>',
+        is_read=True,
+    )
+    return redirect('project_thread', pk=pk)
+
+
+@login_required
+def delete_project(request, pk):
+    if request.method != 'POST':
+        return redirect('project_thread', pk=pk)
+
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    project.delete()
+    messages.success(request, 'Projeto excluído.')
+    return redirect('inbox')
+
+
+@login_required
 def poll_new_emails(request, pk):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
     after_id = int(request.GET.get('after', 0))
@@ -165,6 +198,22 @@ def poll_new_emails(request, pk):
         'new_emails': new_emails,
         'persona_states': project.states.all(),
     })
+
+
+@login_required
+def continue_flow(request, pk):
+    if request.method != 'POST':
+        return redirect('project_thread', pk=pk)
+
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    if project.status == 'paused':
+        messages.error(request, 'Projeto suspenso. Envie feedback para retomar.')
+        return redirect('project_thread', pk=pk)
+
+    project.status = 'active'
+    project.save(update_fields=['status', 'updated_at'])
+    enqueue_flow_step(project.id)
+    return redirect('project_thread', pk=pk)
 
 
 @login_required

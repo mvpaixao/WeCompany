@@ -41,4 +41,39 @@
       {% endif %}
     </div>
   </div>
+
+  {% if email.sender != 'user' and email.sender != 'system' %}
+  <div class="email-actions px-3 pb-2 pt-1 d-flex gap-2 align-items-center border-top">
+    <span class="btn-seguir-wrap" style="display:none;">
+      <form method="post" action="{% url 'continue_flow' project.pk %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-success">
+          <i class="bi bi-arrow-right-circle"></i> Seguir para próximo
+        </button>
+      </form>
+    </span>
+    <button type="button" class="btn btn-sm btn-outline-secondary"
+            onclick="toggleReply('reply-{{ email.pk }}', this)">
+      <i class="bi bi-reply"></i> Responder
+    </button>
+  </div>
+  <div class="inline-reply d-none px-3 pb-3" id="reply-{{ email.pk }}">
+    <form method="post" action="{% url 'submit_feedback' project.pk %}"
+          hx-post="{% url 'submit_feedback' project.pk %}"
+          hx-target="#email-thread"
+          hx-swap="beforeend"
+          hx-on::after-request="closeReply('reply-{{ email.pk }}'); this.reset(); updateSeguirVisibility();">
+      {% csrf_token %}
+      <textarea name="feedback" class="form-control form-control-sm mb-2" rows="3"
+                placeholder="Responda a este e-mail..." required></textarea>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="bi bi-send"></i> Enviar
+        </button>
+        <button type="button" class="btn btn-sm btn-link text-muted px-0"
+                onclick="closeReply('reply-{{ email.pk }}')">Cancelar</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
 </div>

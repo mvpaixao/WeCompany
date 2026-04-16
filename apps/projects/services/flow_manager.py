@@ -107,6 +107,12 @@ def run_next_step(project_id: int) -> None:
     delta = is_delta_run(project)
 
     for persona_key in personas:
+        # Check if project was suspended while we were processing
+        project.refresh_from_db()
+        if project.status in ('paused', 'completed'):
+            logger.info('[Project %d] Projeto %s durante loop — abortando', project_id, project.status)
+            return
+
         budget = check_budget(project, config)
         if not budget['ok']:
             logger.warning('[Project %d] Budget excedido antes de %s', project_id, persona_key)
@@ -152,21 +158,15 @@ def run_next_step(project_id: int) -> None:
 
     project.refresh_from_db()
 
-    # Determine next step description for the user
-    next_p = next_steps(project)
-    if next_p:
-        next_names = ', '.join(PERSONA_NAMES.get(p, p) for p in next_p)
-        _set_activity(project, f'Aguardando resposta de {next_names}...')
-        logger.info('[Project %d] Próxima etapa: %s', project_id, next_names)
-
     if is_consensus_reached(project):
         logger.info('[Project %d] Consenso atingido após rodada', project_id)
         _set_activity(project, 'Consenso atingido — extraindo especificações...')
         _handle_consensus(project, config)
         return
 
-    from apps.projects.tasks import enqueue_flow_step
-    enqueue_flow_step(project.id)
+    # Pause here — user must click "Seguir" to trigger the next round
+    _set_activity(project, '')
+    logger.info('[Project %d] Aguardando ação do usuário para continuar', project_id)
 
 
 def _handle_consensus(project: Project, config: ControllerConfig) -> None:
