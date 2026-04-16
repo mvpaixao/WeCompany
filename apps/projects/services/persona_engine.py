@@ -14,10 +14,10 @@ from apps.controller.models import ControllerConfig
 
 logger = logging.getLogger(__name__)
 
-COST_PER_INPUT_TOKEN  = Decimal('0.000003')   # $3 / 1M
-COST_PER_OUTPUT_TOKEN = Decimal('0.000015')   # $15 / 1M
+COST_PER_INPUT_TOKEN  = Decimal('0.0000008')  # $0.80 / 1M
+COST_PER_OUTPUT_TOKEN = Decimal('0.000004')   # $4 / 1M
 
-MODEL = 'claude-sonnet-4-20250514'
+MODEL = 'claude-haiku-4-5-20251001'
 
 PERSONA_NAMES = {
     'po':   'Product Owner (PO)',
