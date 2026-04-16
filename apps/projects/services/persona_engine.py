@@ -319,6 +319,7 @@ STATUS: [PENDING | APPROVED | BLOCKED]
 MOTIVO_STATUS: [breve justificativa do seu status atual]
 """
 
+    logger.info('→ API Anthropic | modelo=%s | persona=%s | projeto=%d', MODEL, persona_key, project.id)
     try:
         response = client.messages.create(
             model=MODEL,
@@ -326,8 +327,12 @@ MOTIVO_STATUS: [breve justificativa do seu status atual]
             system=SYSTEM_PROMPTS[persona_key],
             messages=[{'role': 'user', 'content': user_message}],
         )
+        logger.info(
+            '← API Anthropic OK | persona=%s | input=%d | output=%d | stop=%s',
+            persona_key, response.usage.input_tokens, response.usage.output_tokens, response.stop_reason,
+        )
     except anthropic.APIError as e:
-        logger.error('Anthropic API error for persona %s: %s', persona_key, e)
+        logger.error('← API Anthropic ERRO | persona=%s | %s', persona_key, e)
         raise
 
     raw_text = response.content[0].text

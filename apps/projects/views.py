@@ -151,8 +151,17 @@ def poll_new_emails(request, pk):
             'persona_states': project.states.all(),
         })
 
+    project.refresh_from_db()  # pega current_activity atualizado pela thread
     new_emails = list(project.emails.filter(id__gt=after_id))
+
+    # Sem emails novos mas pode ter mudança de atividade
     if not new_emails:
+        activity = project.current_activity
+        if activity:
+            return HttpResponse(
+                f'<span id="activity-text">{activity}</span>',
+                headers={'HX-Reswap': 'innerHTML', 'HX-Retarget': '#activity-text'},
+            )
         return HttpResponse(status=204)
 
     for e in new_emails:

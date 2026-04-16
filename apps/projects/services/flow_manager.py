@@ -8,7 +8,7 @@ import logging
 from apps.projects.models import Project, EmailMessage, PersonaState
 from apps.controller.models import ControllerConfig
 from apps.controller.budget_guard import check_budget
-from .persona_engine import call_persona, SYSTEM_PROMPTS
+from .persona_engine import call_persona, SYSTEM_PROMPTS, PERSONA_NAMES
 
 logger = logging.getLogger(__name__)
 
@@ -16,29 +16,22 @@ FLOW_PERSONAS = ['po', 'fc', 'el', 'dev1', 'dev2']
 CORE_PERSONAS = ['po', 'fc', 'el']
 
 
-def next_steps(project: Project) -> list[str]:
-    """
-    Returns list of persona keys that should respond next.
+def _set_activity(project: Project, msg: str) -> None:
+    """Updates the visible activity status for the user and logs it."""
+    logger.info('[Project %d] %s', project.id, msg)
+    Project.objects.filter(pk=project.pk).update(current_activity=msg)
+    project.current_activity = msg
 
-    Rules (in order):
-    1. No AI emails yet → PO creates Brief
-    2. PO spoke, FC hasn't → FC does field research
-    3. FC spoke, EL hasn't → EL does technical evaluation
-    4. Anyone BLOCKED → PO resolves (unless PO is blocked → EL resolves)
-    5. All CORE_PERSONAS APPROVED → DEV1 + DEV2 generate specs
-    6. All FLOW_PERSONAS APPROVED → consensus reached
-    7. Default: whoever hasn't responded to the latest thread
-    """
+
+def next_steps(project: Project) -> list[str]:
     ai_emails = project.emails.filter(sender__in=FLOW_PERSONAS).order_by('created_at')
     states = {s.persona: s.status for s in project.states.all()}
     senders = set(ai_emails.values_list('sender', flat=True))
 
     if not ai_emails.exists():
         return ['po']
-
     if 'po' in senders and 'fc' not in senders:
         return ['fc']
-
     if 'fc' in senders and 'el' not in senders:
         return ['el']
 
@@ -52,9 +45,8 @@ def next_steps(project: Project) -> list[str]:
         if missing_devs:
             return missing_devs
         if all(states.get(p) == 'approved' for p in FLOW_PERSONAS):
-            return []  # Consensus
+            return []
 
-    # Default: last sender determines who responds
     last_sender = ai_emails.last().sender if ai_emails.exists() else None
     if last_sender in ('fc', 'el') and states.get('po') != 'approved':
         return ['po']
@@ -73,31 +65,42 @@ def is_consensus_reached(project: Project) -> bool:
 
 
 def is_delta_run(project: Project) -> bool:
-    """True if specs already exist — this is a refinement cycle."""
     return project.specs.exists()
 
 
 def run_next_step(project_id: int) -> None:
+    logger.info('=== [Project %d] Iniciando próximo passo ===', project_id)
+
     try:
         project = Project.objects.get(pk=project_id)
     except Project.DoesNotExist:
-        logger.error('Project %d not found', project_id)
+        logger.error('[Project %d] Projeto não encontrado', project_id)
         return
 
     if project.status in ('completed', 'paused'):
+        logger.info('[Project %d] Status=%s, abortando', project_id, project.status)
         return
 
     config = ControllerConfig.get_for_user(project.owner)
 
     budget = check_budget(project, config)
     if not budget['ok']:
+        logger.warning('[Project %d] Budget excedido: %s', project_id, budget['reason'])
+        _set_activity(project, f'Pausado: {budget["reason"]}')
         _pause_project(project, budget['reason'])
         return
 
     personas = next_steps(project)
+    logger.info('[Project %d] Próximas personas: %s', project_id, personas or 'nenhuma')
+
     if not personas:
         if is_consensus_reached(project):
+            logger.info('[Project %d] Consenso atingido — gerando specs', project_id)
+            _set_activity(project, 'Consenso atingido — extraindo especificações...')
             _handle_consensus(project, config)
+        else:
+            logger.warning('[Project %d] Sem próximas personas e sem consenso — fluxo parado', project_id)
+            _set_activity(project, '')
         return
 
     last_email = project.emails.filter(sender__in=FLOW_PERSONAS).last() or project.emails.last()
@@ -106,15 +109,20 @@ def run_next_step(project_id: int) -> None:
     for persona_key in personas:
         budget = check_budget(project, config)
         if not budget['ok']:
+            logger.warning('[Project %d] Budget excedido antes de %s', project_id, persona_key)
+            _set_activity(project, f'Pausado: {budget["reason"]}')
             _pause_project(project, budget['reason'])
             return
 
-        # Extra instruction for DEV personas: full spec vs delta
+        name = PERSONA_NAMES.get(persona_key, persona_key)
+        _set_activity(project, f'Enviando requisição para {name}...')
+        logger.info('[Project %d] → Chamando %s (delta=%s)', project_id, name, delta)
+
         extra = ''
         if persona_key in ('dev1', 'dev2') and delta:
             extra = (
                 '\n\n⚠️ MODO DELTA ATIVO: Já existem especificações para este projeto. '
-                'Gere APENAS as specs do que foi ADICIONADO, MODIFICADO ou REMOVIDO em relação à versão anterior. '
+                'Gere APENAS as specs do que foi ADICIONADO, MODIFICADO ou REMOVIDO. '
                 'Marque cada item com 🟢 ADICIONADO, 🟡 MODIFICADO ou 🔴 REMOVIDO.'
             )
         elif persona_key in ('dev1', 'dev2'):
@@ -129,13 +137,31 @@ def run_next_step(project_id: int) -> None:
                 extra_instruction=extra,
             )
             last_email = email
+            status = project.states.filter(persona=persona_key).values_list('status', flat=True).first()
+            logger.info(
+                '[Project %d] ← %s respondeu | status=%s | tokens=%d | custo=$%.5f',
+                project_id, name, status, email.tokens_used, float(email.cost_usd),
+            )
+            _set_activity(project, f'{name} respondeu ({status}) — total: {project.total_tokens_used:,} tokens')
+
         except Exception as e:
-            logger.exception('Error calling persona %s for project %d: %s', persona_key, project_id, e)
+            logger.exception('[Project %d] ERRO ao chamar %s: %s', project_id, name, e)
+            _set_activity(project, f'Erro ao chamar {name}: {e}')
             _error_message(project, persona_key, str(e))
             return
 
     project.refresh_from_db()
+
+    # Determine next step description for the user
+    next_p = next_steps(project)
+    if next_p:
+        next_names = ', '.join(PERSONA_NAMES.get(p, p) for p in next_p)
+        _set_activity(project, f'Aguardando resposta de {next_names}...')
+        logger.info('[Project %d] Próxima etapa: %s', project_id, next_names)
+
     if is_consensus_reached(project):
+        logger.info('[Project %d] Consenso atingido após rodada', project_id)
+        _set_activity(project, 'Consenso atingido — extraindo especificações...')
         _handle_consensus(project, config)
         return
 
@@ -146,34 +172,35 @@ def run_next_step(project_id: int) -> None:
 def _handle_consensus(project: Project, config: ControllerConfig) -> None:
     from apps.projects.services.spec_service import extract_and_save_specs
 
-    # Extract specs from dev emails
     version_type = 'delta' if is_delta_run(project) else 'full'
     version_num = project.specs.values('version').distinct().count() + 1
+    logger.info('[Project %d] Extraindo specs versão %d (%s)', project.id, version_num, version_type)
+
     extract_and_save_specs(project, version_type=version_type, version=version_num)
 
     label = 'Especificações delta geradas' if version_type == 'delta' else 'Especificações completas geradas'
+    logger.info('[Project %d] %s', project.id, label)
+
     body = (
         f'**{label}!** Todas as personas aprovaram.\n\n'
         'As especificações foram salvas e estão disponíveis abaixo. '
         'Envie feedback para gerar um novo ciclo com specs delta.'
     )
     EmailMessage.objects.create(
-        project=project,
-        sender='system',
-        recipients=[],
-        subject=label,
-        body=body,
+        project=project, sender='system', recipients=[],
+        subject=label, body=body,
         body_html=f'<p><strong>{label}!</strong> Todas as personas aprovaram.</p>'
-                  '<p>As especificações foram salvas abaixo. '
-                  'Envie feedback para gerar um novo ciclo com specs delta.</p>',
+                  '<p>Envie feedback para gerar um novo ciclo com specs delta.</p>',
         is_read=False,
     )
     project.status = 'dormant'
-    project.save(update_fields=['status', 'updated_at'])
+    _set_activity(project, '')
+    project.save(update_fields=['status', 'updated_at', 'current_activity'])
 
 
 def _pause_project(project: Project, reason: str) -> None:
     from apps.projects.services.persona_engine import render_markdown
+    logger.warning('[Project %d] Pausado: %s', project.id, reason)
     body = f'O fluxo foi interrompido automaticamente.\n\n**Motivo:** {reason}'
     EmailMessage.objects.create(
         project=project, sender='system', recipients=[],
@@ -181,16 +208,17 @@ def _pause_project(project: Project, reason: str) -> None:
         body=body, body_html=render_markdown(body), is_read=False,
     )
     project.status = 'paused'
-    project.save(update_fields=['status', 'updated_at'])
+    project.save(update_fields=['status', 'updated_at', 'current_activity'])
 
 
 def _error_message(project: Project, persona_key: str, error: str) -> None:
-    from apps.projects.services.persona_engine import PERSONA_NAMES, render_markdown
-    body = f'Erro ao processar resposta de {PERSONA_NAMES.get(persona_key, persona_key)}.\n\n`{error}`'
+    from apps.projects.services.persona_engine import render_markdown
+    name = PERSONA_NAMES.get(persona_key, persona_key)
+    body = f'Erro ao processar resposta de {name}.\n\n`{error}`'
     EmailMessage.objects.create(
         project=project, sender='system', recipients=[],
-        subject=f'Erro — {PERSONA_NAMES.get(persona_key, persona_key)}',
+        subject=f'Erro — {name}',
         body=body, body_html=render_markdown(body), is_read=False,
     )
     project.status = 'paused'
-    project.save(update_fields=['status', 'updated_at'])
+    project.save(update_fields=['status', 'updated_at', 'current_activity'])

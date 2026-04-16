@@ -38,10 +38,10 @@
   {% include "projects/_persona_status_bar.html" %}
 </div>
 
-<!-- Thinking indicator -->
-<div class="thinking-indicator" id="thinking">
+<!-- Activity indicator -->
+<div class="thinking-indicator {% if project.current_activity %}visible{% endif %}" id="thinking">
   <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
-  A equipe está respondendo…
+  <span id="activity-text">{{ project.current_activity|default:"A equipe está respondendo…" }}</span>
 </div>
 
 <!-- Email thread -->
@@ -186,6 +186,20 @@
   document.addEventListener('htmx:beforeRequest', function (evt) {
     if (evt.detail.target === thread) {
       thread.dataset.wasAtBottom = isAtBottom() ? '1' : '0';
+    }
+  });
+
+  // Atualiza o indicator de atividade
+  document.addEventListener('htmx:afterRequest', function (evt) {
+    if (evt.detail.target !== thread) return;
+    var actEl = document.getElementById('activity-text');
+    var indicator = document.getElementById('thinking');
+    if (!actEl || !indicator) return;
+    var newText = actEl.textContent.trim();
+    if (newText) {
+      indicator.classList.add('visible');
+    } else {
+      indicator.classList.remove('visible');
     }
   });
 

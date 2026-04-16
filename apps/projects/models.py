@@ -17,6 +17,7 @@ class Project(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     total_tokens_used = models.IntegerField(default=0)
     total_cost_usd = models.DecimalField(max_digits=10, decimal_places=6, default=0)
+    current_activity = models.CharField(max_length=300, blank=True, default='')
 
     class Meta:
         ordering = ['-updated_at']
