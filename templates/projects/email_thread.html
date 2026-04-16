@@ -38,10 +38,14 @@
   {% include "projects/_persona_status_bar.html" %}
 </div>
 
-<!-- Activity indicator -->
+<!-- Activity indicator — polling próprio, totalmente separado do thread -->
 <div class="thinking-indicator {% if project.current_activity %}visible{% endif %}" id="thinking">
   <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
-  <span id="activity-text">{{ project.current_activity|default:"A equipe está respondendo…" }}</span>
+  <span id="activity-text"
+        hx-get="{% url 'poll_activity' project.pk %}"
+        hx-trigger="{% if project.status == 'active' %}every 2s{% else %}none{% endif %}"
+        hx-swap="innerHTML"
+        hx-target="#activity-text">{{ project.current_activity }}</span>
 </div>
 
 <!-- Email thread -->
@@ -189,17 +193,13 @@
     }
   });
 
-  // Atualiza o indicator de atividade
-  document.addEventListener('htmx:afterRequest', function (evt) {
-    if (evt.detail.target !== thread) return;
+  // Mostra/oculta o indicator conforme o texto de atividade
+  document.addEventListener('htmx:afterSwap', function (evt) {
     var actEl = document.getElementById('activity-text');
     var indicator = document.getElementById('thinking');
-    if (!actEl || !indicator) return;
-    var newText = actEl.textContent.trim();
-    if (newText) {
-      indicator.classList.add('visible');
-    } else {
-      indicator.classList.remove('visible');
+    if (evt.detail.target === actEl && indicator) {
+      var txt = actEl.textContent.trim();
+      indicator.classList.toggle('visible', txt.length > 0);
     }
   });
 
