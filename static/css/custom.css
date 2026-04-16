@@ -2,7 +2,7 @@
 
 :root {
   --color-po:     #0d6efd;
-  --color-pm:     #198754;
+  --color-fc:     #20c997;
   --color-el:     #6f42c1;
   --color-dev1:   #fd7e14;
   --color-dev2:   #dc3545;
@@ -150,7 +150,7 @@ body {
 .persona-avatar.sm { width: 24px; height: 24px; font-size: 0.6rem; }
 
 .persona-avatar--po     { background-color: var(--color-po); }
-.persona-avatar--pm     { background-color: var(--color-pm); }
+.persona-avatar--fc     { background-color: var(--color-fc); color: #000; }
 .persona-avatar--el     { background-color: var(--color-el); }
 .persona-avatar--dev1   { background-color: var(--color-dev1); }
 .persona-avatar--dev2   { background-color: var(--color-dev2); }
@@ -175,7 +175,7 @@ body {
   background: #f8f9fa;
 }
 .email-card--po   { border-top: 3px solid var(--color-po); }
-.email-card--pm   { border-top: 3px solid var(--color-pm); }
+.email-card--fc   { border-top: 3px solid var(--color-fc); }
 .email-card--el   { border-top: 3px solid var(--color-el); }
 .email-card--dev1 { border-top: 3px solid var(--color-dev1); }
 .email-card--dev2 { border-top: 3px solid var(--color-dev2); }
@@ -274,6 +274,33 @@ body {
   padding: 0.5rem 0;
 }
 .thinking-indicator.visible { display: flex; }
+
+/* ─── Spec panel ─────────────────────────── */
+.spec-panel { margin-top: 1.5rem; }
+
+.spec-tab-content { border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 8px 8px; }
+
+.spec-body {
+  padding: 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+.spec-body h1, .spec-body h2 { font-size: 1rem; font-weight: 700; margin-top: 1.2rem; }
+.spec-body h3 { font-size: 0.9rem; font-weight: 600; color: #555; }
+.spec-body table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 0.5rem 0; }
+.spec-body table th, .spec-body table td { border: 1px solid #dee2e6; padding: 0.35rem 0.6rem; }
+.spec-body table th { background: #f8f9fa; font-weight: 600; }
+.spec-body code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 0.82em; }
+.spec-body pre  { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+.spec-body ul, .spec-body ol { padding-left: 1.4rem; }
+
+.spec-version-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+.spec-version-badge.full  { background: #d1e7dd; color: #0f5132; }
+.spec-version-badge.delta { background: #fff3cd; color: #856404; }
 
 /* ─── Responsive ─────────────────────────── */
 @media (max-width: 768px) {

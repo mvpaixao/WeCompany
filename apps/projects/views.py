@@ -2,11 +2,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.contrib import messages
-from django.utils import timezone
 
-from .models import Project, EmailMessage, PersonaState, GitHubIssue
+from .models import Project, EmailMessage, PersonaState, ProjectSpec
 from apps.controller.models import ControllerConfig
-from .tasks import enqueue_flow_step, enqueue_issue_creation
+from .tasks import enqueue_flow_step
+from .services.spec_service import get_all_spec_versions
 
 
 @login_required
@@ -20,7 +20,6 @@ def new_project(request):
     if request.method == 'POST':
         title = request.POST.get('title', '').strip()
         original_idea = request.POST.get('original_idea', '').strip()
-        github_repo = request.POST.get('github_repo', '').strip()
 
         if not original_idea:
             messages.error(request, 'Por favor, descreva sua ideia.')
@@ -33,14 +32,11 @@ def new_project(request):
             owner=request.user,
             title=title,
             original_idea=original_idea,
-            github_repo=github_repo,
         )
 
-        # Create initial persona states
-        for persona in ['po', 'pm', 'el', 'dev1', 'dev2']:
+        for persona in ['po', 'fc', 'el', 'dev1', 'dev2']:
             PersonaState.objects.create(project=project, persona=persona)
 
-        # Record user's initial message
         EmailMessage.objects.create(
             project=project,
             sender='user',
@@ -51,10 +47,8 @@ def new_project(request):
             is_read=True,
         )
 
-        # Enqueue first flow step (PO creates Brief)
         enqueue_flow_step(project.id)
-
-        messages.success(request, 'Ideia enviada para a equipe! Aguarde a resposta do Product Owner.')
+        messages.success(request, 'Ideia enviada! O Product Owner está preparando o brief.')
         return redirect('project_thread', pk=project.pk)
 
     return render(request, 'projects/new_project.html')
@@ -65,18 +59,16 @@ def project_thread(request, pk):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
     emails = project.emails.all()
     states = project.states.all()
-    issues = project.issues.all()
-
-    # Mark emails as read
-    project.emails.filter(is_read=False).update(is_read=True)
-
+    spec_versions = get_all_spec_versions(project)
     config = ControllerConfig.get_for_user(request.user)
+
+    project.emails.filter(is_read=False).update(is_read=True)
 
     return render(request, 'projects/email_thread.html', {
         'project': project,
         'emails': emails,
         'persona_states': states,
-        'issues': issues,
+        'spec_versions': spec_versions,
         'config': config,
     })
 
@@ -93,55 +85,35 @@ def submit_feedback(request, pk):
         messages.error(request, 'Por favor, escreva seu feedback.')
         return redirect('project_thread', pk=pk)
 
-    # Save user feedback as email
     last_email = project.emails.last()
     EmailMessage.objects.create(
         project=project,
         sender='user',
         recipients=['po'],
-        subject=f'Re: Feedback do usuário',
+        subject='Feedback do usuário',
         body=feedback,
         body_html=f'<p>{feedback}</p>',
         in_reply_to=last_email,
         is_read=True,
     )
 
-    # Reset all persona states to pending
+    # Reset states and reactivate
     project.states.all().update(status='pending', last_concern='')
-
-    # Reactivate project
     project.status = 'active'
     project.save()
 
-    # Enqueue PO response to feedback
     enqueue_flow_step(project.id)
 
     if request.headers.get('HX-Request'):
-        emails = project.emails.all()
-        states = project.states.all()
-        return render(request, 'projects/_email_list.html', {
+        return render(request, 'projects/_email_card.html', {
+            'email': project.emails.last(),
             'project': project,
-            'emails': emails,
-            'persona_states': states,
         })
-
-    return redirect('project_thread', pk=pk)
-
-
-@login_required
-def create_issues(request, pk):
-    if request.method != 'POST':
-        return redirect('project_thread', pk=pk)
-
-    project = get_object_or_404(Project, pk=pk, owner=request.user)
-    enqueue_issue_creation(project.id)
-    messages.success(request, 'Criação de Issues no GitHub iniciada!')
     return redirect('project_thread', pk=pk)
 
 
 @login_required
 def force_approve(request, pk):
-    """Manual bypass: mark all personas as approved and trigger issue generation."""
     if request.method != 'POST':
         return redirect('project_thread', pk=pk)
 
@@ -153,42 +125,33 @@ def force_approve(request, pk):
         sender='system',
         recipients=[],
         subject='Aprovação manual pelo usuário',
-        body='O usuário forçou a aprovação. Gerando GitHub Issues.',
-        body_html='<p><em>O usuário forçou a aprovação. Gerando GitHub Issues.</em></p>',
+        body='O usuário forçou a aprovação. Gerando especificações.',
+        body_html='<p><em>O usuário forçou a aprovação. Gerando especificações.</em></p>',
         is_read=True,
     )
 
-    enqueue_issue_creation(project.id)
-    messages.success(request, 'Aprovação forçada. Gerando Issues.')
+    from .services.flow_manager import _handle_consensus
+    from apps.controller.models import ControllerConfig
+    config = ControllerConfig.get_for_user(request.user)
+    _handle_consensus(project, config)
+
+    messages.success(request, 'Aprovação forçada. Specs geradas.')
     return redirect('project_thread', pk=pk)
 
 
 @login_required
-def email_detail(request, pk, email_pk):
-    project = get_object_or_404(Project, pk=pk, owner=request.user)
-    email = get_object_or_404(EmailMessage, pk=email_pk, project=project)
-    email.is_read = True
-    email.save(update_fields=['is_read'])
-    return render(request, 'projects/_email_card.html', {'email': email, 'project': project})
-
-
-@login_required
 def poll_new_emails(request, pk):
-    """HTMX polling: return new emails and optionally refresh status bar."""
     project = get_object_or_404(Project, pk=pk, owner=request.user)
     after_id = int(request.GET.get('after', 0))
     status_only = request.GET.get('status_only') == '1'
 
     if status_only:
-        states = project.states.all()
         return render(request, 'projects/_persona_status_bar.html', {
             'project': project,
-            'persona_states': states,
+            'persona_states': project.states.all(),
         })
 
     new_emails = list(project.emails.filter(id__gt=after_id))
-
-    # Nada novo → 204 No Content: HTMX não toca no DOM, scroll preservado
     if not new_emails:
         return HttpResponse(status=204)
 
@@ -197,10 +160,8 @@ def poll_new_emails(request, pk):
             e.is_read = True
             e.save(update_fields=['is_read'])
 
-    states = project.states.all()
-
     return render(request, 'projects/_poll_response.html', {
         'project': project,
         'new_emails': new_emails,
-        'persona_states': states,
+        'persona_states': project.states.all(),
     })

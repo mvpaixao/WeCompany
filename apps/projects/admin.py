@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Project, EmailMessage, PersonaState, GitHubIssue
+from .models import Project, EmailMessage, PersonaState, ProjectSpec
 
 
 @admin.register(Project)
@@ -22,6 +22,7 @@ class PersonaStateAdmin(admin.ModelAdmin):
     list_filter = ['persona', 'status']
 
 
-@admin.register(GitHubIssue)
-class GitHubIssueAdmin(admin.ModelAdmin):
-    list_display = ['title', 'project', 'github_issue_number', 'github_url', 'created_at']
+@admin.register(ProjectSpec)
+class ProjectSpecAdmin(admin.ModelAdmin):
+    list_display = ['project', 'spec_type', 'version_type', 'version', 'created_at']
+    list_filter = ['spec_type', 'version_type']

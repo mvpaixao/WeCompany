@@ -13,7 +13,6 @@ class Project(models.Model):
     title = models.CharField(max_length=255)
     original_idea = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS, default='active')
-    github_repo = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     total_tokens_used = models.IntegerField(default=0)
@@ -29,12 +28,21 @@ class Project(models.Model):
     def unread_count(self):
         return self.emails.filter(is_read=False).exclude(sender='user').count()
 
+    @property
+    def has_specs(self):
+        return self.specs.exists()
+
+    @property
+    def spec_version(self):
+        """Returns the current spec version number (1 = first, 2 = first delta, etc.)"""
+        return self.specs.values('version').distinct().count()
+
 
 class EmailMessage(models.Model):
     PERSONA_CHOICES = [
         ('user', 'Você'),
         ('po', 'Product Owner'),
-        ('pm', 'Project Manager'),
+        ('fc', 'Entrevistador de Campo'),
         ('el', 'Engineering Lead'),
         ('dev1', 'Developer (Frontend)'),
         ('dev2', 'Developer (Backend)'),
@@ -82,7 +90,7 @@ class PersonaState(models.Model):
     ]
     PERSONA_CHOICES = [
         ('po', 'Product Owner'),
-        ('pm', 'Project Manager'),
+        ('fc', 'Entrevistador de Campo'),
         ('el', 'Engineering Lead'),
         ('dev1', 'Developer (Frontend)'),
         ('dev2', 'Developer (Backend)'),
@@ -100,15 +108,29 @@ class PersonaState(models.Model):
         return f'{self.project} — {self.get_persona_display()}: {self.status}'
 
 
-class GitHubIssue(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='issues')
-    github_issue_number = models.IntegerField(null=True, blank=True)
-    github_url = models.URLField(blank=True)
-    title = models.CharField(max_length=500)
+class ProjectSpec(models.Model):
+    """Specification document generated after consensus."""
+    SPEC_TYPES = [
+        ('ui',        'Spec de UI'),
+        ('backend',   'Spec de Backend'),
+        ('business',  'Business & Requisitos'),
+        ('technical', 'Especificação Técnica'),
+    ]
+    VERSION_TYPES = [
+        ('full',  'Especificação Completa'),
+        ('delta', 'Delta — Alterações'),
+    ]
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='specs')
+    spec_type = models.CharField(max_length=20, choices=SPEC_TYPES)
+    version_type = models.CharField(max_length=10, choices=VERSION_TYPES, default='full')
+    version = models.PositiveIntegerField(default=1)  # 1 = full, 2+ = delta rounds
     body = models.TextField()
-    labels = models.JSONField(default=list)
-    assignee = models.CharField(max_length=100, blank=True)
+    body_html = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['version', 'spec_type']
+
     def __str__(self):
-        return f'#{self.github_issue_number} {self.title}'
+        tag = 'Δ' if self.version_type == 'delta' else 'v1'
+        return f'[{tag}] {self.get_spec_type_display()} — {self.project}'
