@@ -5,7 +5,7 @@ from django.contrib import messages
 
 from .models import Project, EmailMessage, PersonaState, ProjectSpec
 from apps.controller.models import ControllerConfig
-from .tasks import enqueue_flow_step
+from .tasks import enqueue_flow_step, enqueue_persona_step
 from .services.spec_service import get_all_spec_versions
 
 
@@ -222,6 +222,28 @@ def poll_new_emails(request, pk):
         'new_emails': new_emails,
         'persona_states': project.states.all(),
     })
+
+
+@login_required
+def step_persona(request, pk, persona_key):
+    """Aciona uma persona específica escolhida pelo usuário."""
+    if request.method != 'POST':
+        return redirect('project_thread', pk=pk)
+
+    from .services.persona_engine import PERSONA_NAMES
+    if persona_key not in PERSONA_NAMES:
+        messages.error(request, 'Persona inválida.')
+        return redirect('project_thread', pk=pk)
+
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    if project.status == 'paused':
+        messages.error(request, 'Projeto suspenso. Envie feedback para retomar.')
+        return redirect('project_thread', pk=pk)
+
+    project.status = 'active'
+    project.save(update_fields=['status', 'updated_at'])
+    enqueue_persona_step(project.id, persona_key)
+    return redirect('project_thread', pk=pk)
 
 
 @login_required

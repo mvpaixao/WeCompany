@@ -188,6 +188,71 @@ def run_next_step(project_id: int) -> None:
     logger.info('[Project %d] Aguardando ação do usuário para continuar', project_id)
 
 
+def run_persona_step(project_id: int, persona_key: str) -> None:
+    """Executa uma persona específica escolhida pelo usuário e verifica consenso."""
+    logger.info('=== [Project %d] Chamando persona específica: %s ===', project_id, persona_key)
+
+    try:
+        project = Project.objects.get(pk=project_id)
+    except Project.DoesNotExist:
+        logger.error('[Project %d] Projeto não encontrado', project_id)
+        return
+
+    if project.status in ('completed', 'paused'):
+        logger.info('[Project %d] Status=%s, abortando', project_id, project.status)
+        return
+
+    config = ControllerConfig.get_for_user(project.owner)
+
+    budget = check_budget(project, config)
+    if not budget['ok']:
+        _set_activity(project, f'Pausado: {budget["reason"]}')
+        _pause_project(project, budget['reason'])
+        return
+
+    name = PERSONA_NAMES.get(persona_key, persona_key)
+    _set_activity(project, f'Enviando requisição para {name}...')
+
+    last_email = project.emails.last()
+    delta = is_delta_run(project)
+
+    extra = ''
+    if persona_key in ('dev1', 'dev2') and delta:
+        extra = (
+            '\n\n⚠️ MODO DELTA ATIVO: Já existem especificações para este projeto. '
+            'Gere APENAS as specs do que foi ADICIONADO, MODIFICADO ou REMOVIDO. '
+            'Marque cada item com 🟢 ADICIONADO, 🟡 MODIFICADO ou 🔴 REMOVIDO.'
+        )
+    elif persona_key in ('dev1', 'dev2'):
+        extra = '\n\nGere as especificações completas conforme seu papel (UI+Business para DEV1, Backend+Técnica para DEV2).'
+
+    try:
+        email = call_persona(
+            persona_key=persona_key,
+            project=project,
+            trigger_email=last_email,
+            config=config,
+            extra_instruction=extra,
+        )
+        status = project.states.filter(persona=persona_key).values_list('status', flat=True).first()
+        logger.info('[Project %d] ← %s respondeu | status=%s', project_id, name, status)
+        _set_activity(project, f'{name} respondeu ({status}) — total: {project.total_tokens_used:,} tokens')
+    except Exception as e:
+        logger.exception('[Project %d] ERRO ao chamar %s: %s', project_id, name, e)
+        _set_activity(project, f'Erro ao chamar {name}: {e}')
+        _error_message(project, persona_key, str(e))
+        return
+
+    project.refresh_from_db()
+    if is_consensus_reached(project):
+        logger.info('[Project %d] Consenso atingido após chamada manual', project_id)
+        _set_activity(project, 'Consenso atingido — extraindo especificações...')
+        _handle_consensus(project, config)
+        return
+
+    _set_activity(project, '')
+
+
 def _handle_consensus(project: Project, config: ControllerConfig) -> None:
     from apps.projects.services.spec_service import extract_and_save_specs
 

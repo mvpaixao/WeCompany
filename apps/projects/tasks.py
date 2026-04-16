@@ -26,6 +26,12 @@ def enqueue_flow_step(project_id: int):
     _run_in_thread(run_next_step, project_id)
 
 
+def enqueue_persona_step(project_id: int, persona_key: str):
+    """Dispara uma persona específica em background."""
+    from apps.projects.services.flow_manager import run_persona_step
+    _run_in_thread(run_persona_step, project_id, persona_key)
+
+
 def enqueue_issue_creation(project_id: int):
     """Dispara a criação de Issues no GitHub em background."""
     from apps.projects.services.github_service import create_issues_from_project_task

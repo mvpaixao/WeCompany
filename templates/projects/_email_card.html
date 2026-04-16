@@ -43,16 +43,38 @@
   </div>
 
   {% if email.sender != 'user' and email.sender != 'system' %}
-  <div class="email-actions px-3 pb-2 pt-1 d-flex gap-2 align-items-center border-top">
+  <div class="email-actions px-3 pb-2 pt-1 d-flex gap-2 align-items-center flex-wrap border-top">
+
+    <!-- Botões por persona (apenas no último email de IA) -->
     <span class="btn-seguir-wrap" style="display:none;">
+      <span class="text-muted small me-1" style="font-size:.72rem;">Chamar:</span>
+      {% for state in persona_states %}
+        {% if state.status != 'approved' %}
+          <form method="post" action="{% url 'step_persona' project.pk state.persona %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-primary me-1 mb-1"
+                    title="{{ state.get_persona_display }}">
+              {% if state.persona == 'po' %}PO
+              {% elif state.persona == 'fc' %}FC
+              {% elif state.persona == 'el' %}EL
+              {% elif state.persona == 'dev1' %}DEV1
+              {% elif state.persona == 'dev2' %}DEV2
+              {% endif %}
+            </button>
+          </form>
+        {% endif %}
+      {% endfor %}
+      <!-- Botão fluxo automático -->
       <form method="post" action="{% url 'continue_flow' project.pk %}" class="d-inline">
         {% csrf_token %}
-        <button type="submit" class="btn btn-sm btn-success">
-          <i class="bi bi-arrow-right-circle"></i> Seguir para próximo
+        <button type="submit" class="btn btn-sm btn-success mb-1"
+                title="Deixar o sistema escolher o próximo passo">
+          <i class="bi bi-arrow-right-circle"></i> Auto
         </button>
       </form>
     </span>
-    <button type="button" class="btn btn-sm btn-outline-secondary"
+
+    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto"
             onclick="toggleReply('reply-{{ email.pk }}', this)">
       <i class="bi bi-reply"></i> Responder
     </button>

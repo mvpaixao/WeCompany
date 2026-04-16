@@ -10,6 +10,7 @@ urlpatterns = [
     path('<int:pk>/suspend/', views.suspend_project, name='suspend_project'),
     path('<int:pk>/delete/', views.delete_project, name='delete_project'),
     path('<int:pk>/continue/', views.continue_flow, name='continue_flow'),
+    path('<int:pk>/step/<str:persona_key>/', views.step_persona, name='step_persona'),
     path('<int:pk>/poll/', views.poll_new_emails, name='poll_emails'),
     path('<int:pk>/activity/', views.poll_activity, name='poll_activity'),
 ]
