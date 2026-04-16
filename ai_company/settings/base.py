@@ -72,12 +72,13 @@ WSGI_APPLICATION = 'ai_company.wsgi.application'
 # Database — overridden in development.py / production.py
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django.db.backends.mysql',
         'NAME': os.environ.get('DB_NAME', 'ai_company'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
+        'USER': os.environ.get('DB_USER', 'root'),
         'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
+        'PORT': os.environ.get('DB_PORT', '3306'),
+        'OPTIONS': {'charset': 'utf8mb4'},
     }
 }
 

@@ -1,4 +1,4 @@
-# Generated from pyproject.toml — for PythonAnywhere pip install
+# Para PythonAnywhere (Python 3.10, MySQL)
 django>=5.0
 mysqlclient
 django-q2

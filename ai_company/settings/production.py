@@ -1,13 +1,11 @@
 """
 PythonAnywhere production settings.
-Python 3.10, MySQL (PythonAnywhere free plan).
+Python 3.10, MySQL (plano gratuito).
 """
-
 import os
-from dotenv import load_dotenv
 from pathlib import Path
+from dotenv import load_dotenv
 
-# Load .env before reading settings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / '.env')
 
@@ -26,9 +24,7 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'HOST': os.environ.get('DB_HOST', 'mpaixao.mysql.pythonanywhere-services.com'),
         'PORT': os.environ.get('DB_PORT', '3306'),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-        },
+        'OPTIONS': {'charset': 'utf8mb4'},
     }
 }
 
