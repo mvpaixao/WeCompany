@@ -243,14 +243,17 @@ body {
 .persona-status-badge--approved { background: #d1e7dd; border-color: #198754; color: #0f5132; }
 .persona-status-badge--blocked  { background: #f8d7da; border-color: #dc3545; color: #842029; }
 
-/* ─── Feedback bar ───────────────────────── */
+/* ─── Feedback bar — sticky no fundo da janela ── */
 .feedback-bar {
+  position: sticky;
+  bottom: 0;
   background: #fff;
   border-top: 1px solid #dee2e6;
-  padding: 0.75rem 1.25rem;
+  padding: 0.65rem 1.25rem;
   display: flex;
   gap: 0.5rem;
   align-items: flex-end;
+  z-index: 50;
 }
 .feedback-bar textarea {
   flex: 1;
