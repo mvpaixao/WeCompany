@@ -253,6 +253,12 @@ function closeReply(replyId) {
   document.addEventListener('htmx:afterSwap', function (evt) {
     if (evt.detail.target !== thread) return;
 
+    // Remove duplicate email cards (race condition between poll and HTMX form response)
+    var seen = new Set();
+    thread.querySelectorAll('[id^="email-"]').forEach(function(el) {
+      if (seen.has(el.id)) { el.remove(); } else { seen.add(el.id); }
+    });
+
     var cards = thread.querySelectorAll('[id^="email-"]');
     if (!cards.length) return;
 
