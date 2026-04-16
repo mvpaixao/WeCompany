@@ -18,6 +18,10 @@ class Project(models.Model):
     total_tokens_used = models.IntegerField(default=0)
     total_cost_usd = models.DecimalField(max_digits=10, decimal_places=6, default=0)
     current_activity = models.CharField(max_length=300, blank=True, default='')
+    unlimited_tokens = models.BooleanField(
+        default=False,
+        help_text='Se ativo, ignora limite de tokens/custo para este projeto. Ativar via Django admin.',
+    )
 
     class Meta:
         ordering = ['-updated_at']

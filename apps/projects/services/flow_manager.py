@@ -24,37 +24,56 @@ def _set_activity(project: Project, msg: str) -> None:
 
 
 def next_steps(project: Project) -> list[str]:
+    """
+    Determines which personas should speak next.
+    Rules:
+    - An APPROVED persona cannot be called again (locked after approval).
+    - If no natural next step is found, route to any non-approved core persona.
+    """
     ai_emails = project.emails.filter(sender__in=FLOW_PERSONAS).order_by('created_at')
     states = {s.persona: s.status for s in project.states.all()}
     senders = set(ai_emails.values_list('sender', flat=True))
+    approved = {p for p, s in states.items() if s == 'approved'}
 
+    # Initial sequence: PO → FC → EL (skip if already approved)
     if not ai_emails.exists():
         return ['po']
-    if 'po' in senders and 'fc' not in senders:
+    if 'po' in senders and 'fc' not in senders and 'fc' not in approved:
         return ['fc']
-    if 'fc' in senders and 'el' not in senders:
+    if 'fc' in senders and 'el' not in senders and 'el' not in approved:
         return ['el']
 
     blocked = [p for p, s in states.items() if s == 'blocked']
     if blocked:
-        return ['po'] if 'po' not in blocked else ['el']
+        # Mediation: prefer PO if not approved, else EL if not approved
+        if 'po' not in approved:
+            return ['po']
+        if 'el' not in approved:
+            return ['el']
 
     core_approved = all(states.get(p) == 'approved' for p in CORE_PERSONAS)
     if core_approved:
-        missing_devs = [d for d in ['dev1', 'dev2'] if d not in senders]
+        # Only call devs that haven't spoken yet and aren't approved
+        missing_devs = [d for d in ['dev1', 'dev2'] if d not in senders and d not in approved]
         if missing_devs:
             return missing_devs
         if all(states.get(p) == 'approved' for p in FLOW_PERSONAS):
             return []
 
+    # Route based on last sender (only to non-approved personas)
     last_sender = ai_emails.last().sender if ai_emails.exists() else None
-    if last_sender in ('fc', 'el') and states.get('po') != 'approved':
+    if last_sender in ('fc', 'el') and 'po' not in approved:
         return ['po']
     if last_sender == 'po':
-        if states.get('fc') != 'approved':
+        if 'fc' not in approved:
             return ['fc']
-        if states.get('el') != 'approved':
+        if 'el' not in approved:
             return ['el']
+
+    # Fallback: route to first non-approved core persona to keep discussion going
+    non_approved_core = [p for p in CORE_PERSONAS if p not in approved]
+    if non_approved_core:
+        return [non_approved_core[0]]
 
     return []
 

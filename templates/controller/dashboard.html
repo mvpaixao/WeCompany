@@ -62,11 +62,22 @@
             </div>
           </div>
 
-          <div class="form-check mb-4">
+          <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" name="auto_create_github_issues"
                    id="autoCreate" {% if config.auto_create_github_issues %}checked{% endif %}>
             <label class="form-check-label small" for="autoCreate">
               Criar Issues no GitHub automaticamente após consenso
+            </label>
+          </div>
+
+          <h6 class="text-muted mb-3 mt-3" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;">Comportamento dos Agentes</h6>
+
+          <div class="form-check mb-4">
+            <input class="form-check-input" type="checkbox" name="enable_thinking"
+                   id="enableThinking" {% if config.enable_thinking %}checked{% endif %}>
+            <label class="form-check-label small" for="enableThinking">
+              Modo Thinking — respostas elaboradas
+              <span class="text-muted d-block" style="font-size:.75rem;">Desligado = econômico (1 500 tok/resp). Ligado = detalhado (6 000 tok/resp).</span>
             </label>
           </div>
 

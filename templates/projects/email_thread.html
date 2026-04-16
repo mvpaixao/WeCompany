@@ -24,9 +24,9 @@
   {% if project.status == 'dormant' or project.status == 'active' %}
     <form method="post" action="{% url 'force_approve' project.pk %}" class="d-inline">
       {% csrf_token %}
-      <button type="submit" class="btn btn-outline-success btn-sm"
-              onclick="return confirm('Forçar aprovação e gerar specs?')">
-        <i class="bi bi-check-all"></i> Aprovar e gerar specs
+      <button type="submit" class="btn btn-success btn-sm"
+              onclick="return confirm('Finalizar discussão e gerar SPECs agora?')">
+        <i class="bi bi-check-all"></i> FINALIZAR E GERAR SPECs
       </button>
     </form>
   {% endif %}
@@ -67,6 +67,13 @@
         hx-swap="innerHTML"
         hx-target="#activity-text">{{ project.current_activity }}</span>
 </div>
+
+<!-- Go-to-latest button — aparece quando usuário rola para cima -->
+<button id="btn-go-latest" class="btn btn-primary btn-sm"
+        style="display:none; position:fixed; bottom:80px; right:20px; z-index:1050; border-radius:50px; box-shadow:0 2px 8px rgba(0,0,0,.25);"
+        onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})">
+  <i class="bi bi-arrow-down-circle"></i> Última mensagem
+</button>
 
 <!-- Email thread — sem scroll interno, a página inteira rola -->
 <div id="email-thread"
@@ -228,18 +235,25 @@ function closeReply(replyId) {
 // ── Main thread polling ───────────────────────────────────────────────────
 (function () {
   var thread = document.getElementById('email-thread');
+  var btnLatest = document.getElementById('btn-go-latest');
   var lastEmailId = {{ emails.last.pk|default:0 }};
 
   function pageIsAtBottom() {
-    return (window.scrollY + window.innerHeight) >= (document.body.scrollHeight - 120);
+    return (window.scrollY + window.innerHeight) >= (document.body.scrollHeight - 160);
   }
   function pageScrollToBottom() {
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
   }
 
+  // Show/hide go-to-latest button
+  function updateGoLatestBtn() {
+    if (btnLatest) btnLatest.style.display = pageIsAtBottom() ? 'none' : '';
+  }
+
   var wasAtBottom = true;
   window.addEventListener('scroll', function () {
     wasAtBottom = pageIsAtBottom();
+    updateGoLatestBtn();
   }, { passive: true });
 
   document.addEventListener('htmx:afterSwap', function (evt) {
@@ -253,10 +267,16 @@ function closeReply(replyId) {
   document.addEventListener('htmx:afterSwap', function (evt) {
     if (evt.detail.target !== thread) return;
 
-    // Remove duplicate email cards (race condition between poll and HTMX form response)
+    // Robust dedup: remove ALL duplicate email cards (by id) keeping the first occurrence
     var seen = new Set();
-    thread.querySelectorAll('[id^="email-"]').forEach(function(el) {
-      if (seen.has(el.id)) { el.remove(); } else { seen.add(el.id); }
+    // Collect all cards first, then remove duplicates in a second pass
+    var allCards = Array.from(thread.querySelectorAll('[id^="email-"]'));
+    allCards.forEach(function(el) {
+      if (seen.has(el.id)) {
+        el.remove();
+      } else {
+        seen.add(el.id);
+      }
     });
 
     var cards = thread.querySelectorAll('[id^="email-"]');
@@ -280,12 +300,14 @@ function closeReply(replyId) {
     });
 
     updateSeguirVisibility();
+    updateGoLatestBtn();
 
     if (wasAtBottom) pageScrollToBottom();
   });
 
   // Initial render
   updateSeguirVisibility();
+  updateGoLatestBtn();
 })();
 </script>
 {% endblock %}

@@ -13,6 +13,10 @@ class ControllerConfig(models.Model):
     controller_check_every_n_tokens = models.IntegerField(default=5_000)
     max_rounds_per_flow = models.IntegerField(default=20)
     auto_create_github_issues = models.BooleanField(default=False)
+    enable_thinking = models.BooleanField(
+        default=False,
+        help_text='Modo Thinking: respostas mais elaboradas (até 6000 tokens). Desligado = modo econômico (1500 tokens).',
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):

@@ -54,6 +54,7 @@ def save_config(request):
         return redirect('controller')
 
     config.auto_create_github_issues = 'auto_create_github_issues' in request.POST
+    config.enable_thinking = 'enable_thinking' in request.POST
     config.save()
 
     messages.success(request, 'Configurações salvas com sucesso!')
