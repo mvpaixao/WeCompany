@@ -27,9 +27,7 @@ DJANGO_APPS = [
     'django.contrib.humanize',
 ]
 
-THIRD_PARTY_APPS = [
-    'django_q',
-]
+THIRD_PARTY_APPS = []
 
 LOCAL_APPS = [
     'apps.accounts',
@@ -107,17 +105,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
-
-# Django Q — async task queue
-Q_CLUSTER = {
-    'name': 'ai_company',
-    'workers': 2,
-    'timeout': 120,
-    'retry': 200,
-    'queue_limit': 50,
-    'bulk': 10,
-    'orm': 'default',   # Use DB as broker (works on PythonAnywhere free tier)
-}
 
 # Anthropic / GitHub — can also be set per-user in ControllerConfig
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
